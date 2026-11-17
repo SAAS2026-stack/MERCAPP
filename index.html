@@ -78,6 +78,18 @@ a.x{color:var(--mut);font-size:13px;cursor:pointer;text-decoration:underline}
 .mt em{font-style:normal;color:var(--ink);font-weight:700;min-width:34px;text-align:right}
 .dr{display:flex;gap:12px;padding:9px 0;border-bottom:1px solid var(--ln)}
 .dr:last-child{border:0}
+
+.daily-scroll{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 12px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+.daily-card{flex:0 0 240px;min-width:0;background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:12px;scroll-snap-align:start}
+.daily-head{display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:700}
+.daily-count{font-size:12px;color:var(--mut);white-space:nowrap}
+.daily-chart{height:76px;display:flex;align-items:flex-end;justify-content:center;margin:8px 0 10px;border-bottom:1px solid var(--ln)}
+.daily-bar{width:42px;min-height:5px;border-radius:8px 8px 2px 2px;background:var(--ac);position:relative}
+.daily-bar span{position:absolute;left:50%;top:-22px;transform:translateX(-50%);font-size:12px;font-weight:700;color:var(--ink)}
+.daily-emojis{display:flex;flex-wrap:wrap;gap:6px;overflow:visible;padding:2px 0 5px}
+.daily-emoji{flex:0 0 auto;background:var(--acs);border-radius:10px;padding:5px 7px;font-size:18px;white-space:nowrap}
+.daily-emoji small{font-size:11px;color:var(--mut);vertical-align:middle}
+.daily-hint{font-size:11px;color:var(--mut);text-align:center;margin:-3px 0 8px}
 .dl{flex:0 0 74px;font-weight:700;font-size:14px}
 .dc{flex:1;display:flex;flex-wrap:wrap;gap:6px}
 .chip{background:var(--acs);border-radius:20px;padding:4px 10px;font-weight:700;font-size:14px}
@@ -243,8 +255,7 @@ function viewWk2(){
   var N=S.items.length,bad={};W.forEach(function(a){bad[a.id]=1});
   var nb=Object.keys(bad).length,ok=N-nb,pct=N?Math.round(ok/N*100):100,C=263.9,col=pct>=90?'var(--ac)':pct>=70?'var(--warn)':'var(--bad)';
   var h=`<div class='card ring'><svg viewBox='0 0 100 100' width='116' height='116' style='flex:none'><circle cx='50' cy='50' r='42' fill='none' stroke='var(--ln)' stroke-width='10'/><circle cx='50' cy='50' r='42' fill='none' stroke='${col}' stroke-width='10' stroke-linecap='round' stroke-dasharray='${pct/100*C} ${C}' transform='rotate(-90 50 50)'/><text x='50' y='57' text-anchor='middle' font-size='22' font-weight='800' fill='currentColor' style='font-family:Bricolage Grotesque,sans-serif'>${pct}%</text></svg><div class='grow'><div class='nm' style='font-size:18px'>${ok} de ${N} ítems cuadran</div><div class='sub'>${nb?(nb+(nb>1?' tienen diferencias':' tiene diferencias')+' esta semana.'):'Todo coincide con lo registrado.'}</div><div class='sub' style='margin-top:6px'>${U} consumos y ${B} compras${P?' (antes: '+P+' consumos)':''}</div></div></div>`;
-  var mx=Math.max.apply(null,D.concat([1]));
-  h+=`${dayStrip(now)}<div class='card' style='display:none'><div class='days'>`+D.map(function(v,j){var d=new Date(now-(6-j)*DAY);return `<div class='${j==6?'t':''}'><b>${v||''}</b><i style='height:${Math.max(6,v/mx*80)}px'></i>${d.toLocaleDateString('es-CO',{weekday:'short'}).replace('.','')}</div>`}).join('')+`</div></div>`;
+  h+=dayStrip(now);
   h+=`<h2>Diferencias</h2>`+(W.length?W.slice().reverse().map(function(a){var it=item(a.id),d=a.real-a.exp,m=Math.max(a.exp,a.real,.25),c=d<0?'var(--bad)':'var(--warn)';
     return `<div class='card'><div class='row'><div class='em' style='font-size:22px'>${it.em}</div><div class='grow nm'>${it.name}</div><span class='tag ${d<0?'':'w'}'>${d<0?'Faltan':'Sobran'} ${fmt(Math.abs(d))} ${it.unit}</span></div><div class='mt'><span>Esperado</span><div class='tr'><i style='width:${a.exp/m*100}%;background:var(--ac)'></i></div><em>${fmt(a.exp)}</em></div><div class='mt'><span>Contado</span><div class='tr'><i style='width:${Math.max(2,a.real/m*100)}%;background:${c}'></i></div><em>${fmt(a.real)}</em></div></div>`}).join(''):`<div class='card empty'>Sin diferencias esta semana. 🎉</div>`);
   var ids=Object.keys(A).sort(function(a,b){return A[b].u-A[a].u}).slice(0,6),m2=1;
@@ -255,16 +266,31 @@ function viewWk2(){
   return h;
 }
 function dayStrip(now){
-  var rows=[];
+  var rows=[],totals=[];
   for(var k=0;k<7;k++){
-    var u={};
-    S.moves.forEach(function(m){if(m.type=='use'&&Math.floor((now-m.t)/DAY)==k)u[m.id]=(u[m.id]||0)+m.q});
-    var d=new Date(now-k*DAY),lab=k==0?'Hoy':k==1?'Ayer':d.toLocaleDateString('es-ES',{weekday:'long'});
+    var u={},count=0;
+    S.moves.forEach(function(m){
+      if(m.type=='use'&&Math.floor((now-m.t)/DAY)==k){
+        u[m.id]=(u[m.id]||0)+m.q;
+        count++;
+      }
+    });
+    totals.push(count);
+    var d=new Date(now-k*DAY);
+    var lab=k==0?'Hoy':k==1?'Ayer':d.toLocaleDateString('es-CO',{weekday:'short'}).replace('.','');
     lab=lab.charAt(0).toUpperCase()+lab.slice(1);
-    var ch=Object.keys(u).map(function(i){var it=item(i);return `<span class='chip'>${it.em} ${fmt(u[i])} <small>${it.unit}</small></span>`}).join('');
-    rows.push(`<div class='dr'><div class='dl'>${lab}</div><div class='dc'>${ch||`<span class='sub'>Sin consumo registrado</span>`}</div></div>`);
+    var emojis=Object.keys(u).map(function(i){
+      var it=item(i);
+      return `<span class='daily-emoji' title='${it.name}'>${it.em} <small>${fmt(u[i])} ${it.unit}</small></span>`;
+    }).join('');
+    rows.push({label:lab,count:count,emojis:emojis});
   }
-  return `<h2>Qué usaste cada día</h2><div class='card'>${rows.join('')}</div>`;
+  var max=Math.max.apply(null,totals.concat([1]));
+  return `<h2>Consumo por día</h2><div class='daily-hint'>Desliza horizontalmente para ver los 7 días · Las barras muestran registros de consumo</div><div class='daily-scroll'>`+
+    rows.map(function(r){
+      var height=r.count?Math.max(8,r.count/max*62):5;
+      return `<div class='daily-card'><div class='daily-head'><span>${r.label}</span><span class='daily-count'>${r.count} ${r.count==1?'registro':'registros'}</span></div><div class='daily-chart'><div class='daily-bar' style='height:${height}px'><span>${r.count}</span></div></div><div class='daily-emojis'>${r.emojis||`<span class='sub'>Sin consumo</span>`}</div></div>`;
+    }).join('')+`</div>`;
 }
 var SEA=[[['🥬','Acelga'],['🥦','Coliflor'],['🌿','Borraja'],['🍊','Naranja'],['🍎','Manzana']],[['🌿','Alcachofa'],['🥬','Espinaca'],['🥦','Brócoli'],['🍊','Mandarina'],['🍐','Pera']],[['🌿','Alcachofa'],['🥬','Lechuga'],['🥦','Brócoli'],['🍊','Naranja'],['🍓','Fresa']],[['🌿','Espárrago'],['🫛','Guisantes'],['🥬','Lechuga'],['🍓','Fresa'],['🧅','Cebolleta']],[['🌿','Espárrago'],['🫛','Habas'],['🍓','Fresa'],['🍒','Cereza'],['🥬','Lechuga']],[['🍒','Cereza'],['🍑','Albaricoque'],['🥒','Pepino'],['🫛','Judía verde'],['🍅','Tomate']],[['🍅','Tomate'],['🫑','Pimiento'],['🍆','Berenjena'],['🍑','Melocotón'],['🍉','Sandía']],[['🍅','Tomate'],['🫑','Pimiento'],['🍆','Berenjena'],['🍈','Melón'],['🍑','Melocotón']],[['🍇','Uva'],['🫑','Pimiento'],['🍅','Tomate'],['🍐','Pera'],['🍄','Champiñón']],[['🍇','Uva'],['🎃','Calabaza'],['🍄','Setas'],['🍎','Manzana'],['🌰','Castañas']],[['🎃','Calabaza'],['🥬','Acelga'],['🥦','Coliflor'],['🌿','Borraja'],['🍄','Setas'],['🍊','Mandarina'],['🍐','Pera']],[['🌿','Cardo'],['🥦','Coliflor'],['🥬','Acelga'],['🍊','Mandarina'],['🍎','Manzana']]];
 function seasonCard(){
